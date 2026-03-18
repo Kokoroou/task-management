@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=70.0,<80.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "work-state-engine"
+version = "0.1.0"
+description = "CLI-first personal workflow tool — optimised for continuation, not planning."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+keywords = ["cli", "task", "workflow", "productivity"]
+
+dependencies = [
+    "typer>=0.12",
+    "rich>=13",
+]
+
+[project.optional-dependencies]
+windows = ["win10toast>=0.9"]
+
+[project.scripts]
+task = "task_engine.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["task_engine*"]
