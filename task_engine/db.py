@@ -86,18 +86,17 @@ def fetch_task(task_id: int) -> Optional[Task]:
         return Task.from_row(dict(row)) if row else None
 
 
-def fetch_all_tasks(exclude_done: bool = False) -> List[Task]:
-    """Fetch all tasks, optionally excluding DONE ones."""
+def fetch_all_tasks(exclude_states: Optional[List[TaskState]] = None) -> List[Task]:
+    """Fetch all tasks, optionally excluding tasks with given states."""
     with get_conn() as conn:
-        if exclude_done:
+        if exclude_states:
+            placeholders = ", ".join("?" for _ in exclude_states)
             rows = conn.execute(
-                "SELECT * FROM tasks WHERE state != ? ORDER BY id",
-                (TaskState.DONE.value,),
+                f"SELECT * FROM tasks WHERE state NOT IN ({placeholders}) ORDER BY id",
+                [s.value for s in exclude_states],
             ).fetchall()
         else:
-            rows = conn.execute(
-                "SELECT * FROM tasks ORDER BY id"
-            ).fetchall()
+            rows = conn.execute("SELECT * FROM tasks ORDER BY id").fetchall()
         return [Task.from_row(dict(r)) for r in rows]
 
 

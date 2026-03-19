@@ -32,6 +32,7 @@ Each task is not just text — it has a **clearly defined state**:
 - `INTERRUPTED` → paused mid-way
 - `BLOCKED` → waiting on an external dependency
 - `DONE` → completed
+- `DROPPED` → no longer needed (archived, not deleted)
 
 ---
 
@@ -101,6 +102,7 @@ follow_up_at
 - `task add` → create a task
 - `task start` → start working on a task
 - `task done` → mark a task complete
+- `task drop` → drop a task (no longer needed)
 - `task block` → mark a task as blocked
 - `task next` → get the next recommended task
 - `task list` → list all tasks
@@ -418,11 +420,13 @@ task block 1 --reason "Waiting for team review" --follow-up "2025-03-20 09:00"
 | `task start ID` | Start a task (auto-interrupts the current one) |
 | `task start ID --next-step "..."` | Start a task and pre-fill next_step for the current one |
 | `task done ID` | Mark a task as done |
+| `task drop ID` | Drop a task (no longer needed) |
+| `task drop ID --reason "..."` | Drop a task with a reason |
 | `task block ID --reason "..."` | Mark a task as blocked |
 | `task block ID --reason "..." --follow-up "YYYY-MM-DD HH:MM"` | Block a task and set a follow-up reminder |
 | `task next` | Show the next recommended task |
-| `task list` | List active tasks (excludes DONE) |
-| `task list --all` | List all tasks including DONE |
+| `task list` | List active tasks (excludes DONE and DROPPED) |
+| `task list --all` | List all tasks including DONE and DROPPED |
 | `task show ID` | Show full details of a task |
 | `task check-followup` | Check and send alerts for due follow-ups (cron use) |
 

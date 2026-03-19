@@ -14,6 +14,7 @@ class TaskState(str, Enum):
     INTERRUPTED = "INTERRUPTED"
     BLOCKED = "BLOCKED"
     DONE = "DONE"
+    DROPPED = "DROPPED"
 
 
 @dataclass

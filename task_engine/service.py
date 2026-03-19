@@ -57,8 +57,10 @@ def next_task() -> Optional[Task]:
 
 
 def list_tasks(all_tasks: bool = False) -> List[Task]:
-    """Return tasks (exclude DONE by default)."""
-    return db.fetch_all_tasks(exclude_done=not all_tasks)
+    """Return tasks (exclude DONE and DROPPED by default)."""
+    if all_tasks:
+        return db.fetch_all_tasks()
+    return db.fetch_all_tasks(exclude_states=[TaskState.DONE, TaskState.DROPPED])
 
 
 # ──────────────────────────── start ──────────────────────────────────
@@ -76,6 +78,8 @@ def start_task(task_id: int, next_step_for_current: Optional[str] = None) -> Tup
         raise WSEError(f"Task #{task_id} not found.")
     if task.state == TaskState.DONE:
         raise WSEError(f"Task #{task_id} is already DONE — cannot start it.")
+    if task.state == TaskState.DROPPED:
+        raise WSEError(f"Task #{task_id} is DROPPED — cannot start it.")
     if task.state == TaskState.ACTIVE:
         raise WSEError(f"Task #{task_id} is already ACTIVE.")
 
@@ -115,6 +119,8 @@ def done_task(task_id: int) -> Tuple[Task, Optional[Task]]:
         raise WSEError(f"Task #{task_id} not found.")
     if task.state == TaskState.DONE:
         raise WSEError(f"Task #{task_id} is already DONE.")
+    if task.state == TaskState.DROPPED:
+        raise WSEError(f"Task #{task_id} is DROPPED — cannot mark it done.")
 
     done = db.update_task(task_id, state=TaskState.DONE.value, next_step=None)
 
@@ -133,6 +139,38 @@ def done_task(task_id: int) -> Tuple[Task, Optional[Task]]:
             suggestion = None
 
     return done, suggestion
+
+
+# ──────────────────────────── drop ───────────────────────────────────
+
+
+def drop_task(task_id: int, reason: Optional[str] = None) -> Tuple[Task, Optional[Task]]:
+    """
+    Mark task as DROPPED (no longer needed).
+    Returns (dropped_task, suggested_next_task | None).
+    Suggestion is only provided when the task was ACTIVE (freeing the slot).
+    """
+    task = db.fetch_task(task_id)
+    if task is None:
+        raise WSEError(f"Task #{task_id} not found.")
+    if task.state == TaskState.DONE:
+        raise WSEError(f"Task #{task_id} is already DONE — cannot drop it.")
+    if task.state == TaskState.DROPPED:
+        raise WSEError(f"Task #{task_id} is already DROPPED.")
+
+    updates: dict = {"state": TaskState.DROPPED.value, "next_step": None}
+    if reason:
+        updates["block_reason"] = reason
+
+    dropped = db.update_task(task_id, **updates)
+
+    suggestion: Optional[Task] = None
+    if task.state == TaskState.ACTIVE:
+        suggestion = next_task()
+        if suggestion and suggestion.id == task_id:
+            suggestion = None
+
+    return dropped, suggestion
 
 
 # ──────────────────────────── block ──────────────────────────────────

@@ -5,6 +5,7 @@ Usage:
     task add "Title of new task" [--parent ID]
     task start ID [--next-step "Where I left off..."]
     task done ID
+    task drop ID [--reason "why"]
     task block ID --reason "Waiting for..." [--follow-up "2025-03-20 09:00"]
     task next
     task list [--all]
@@ -44,6 +45,7 @@ STATE_STYLE: dict[TaskState, str] = {
     TaskState.INTERRUPTED: "bold yellow",
     TaskState.BLOCKED: "bold red",
     TaskState.DONE: "dim",
+    TaskState.DROPPED: "dim",
 }
 
 STATE_ICON: dict[TaskState, str] = {
@@ -52,6 +54,7 @@ STATE_ICON: dict[TaskState, str] = {
     TaskState.INTERRUPTED: "⏸",
     TaskState.BLOCKED: "✖",
     TaskState.DONE: "✔",
+    TaskState.DROPPED: "⊘",
 }
 
 
@@ -154,6 +157,45 @@ def done(
 
 
 @app.command()
+def drop(
+    task_id: int = typer.Argument(..., help="ID of the task to drop"),
+    reason: Optional[str] = typer.Option(None, "--reason", "-r", help="Why is this task being dropped?"),
+):
+    """Drop a task — mark it as no longer needed (stays in DB)."""
+    db.init_db()
+
+    task = db.fetch_task(task_id)
+    if task is None:
+        rprint(f"[bold red]Error:[/bold red] Task #{task_id} not found.")
+        raise typer.Exit(code=1)
+
+    # Require confirmation when dropping an ACTIVE task
+    if task.state == TaskState.ACTIVE:
+        rprint(f"[bold yellow]⚠  Task #{task.id} \"{task.title}\" is currently ACTIVE.[/bold yellow]")
+        confirmed = typer.confirm("  Are you sure you want to drop it?", default=False)
+        if not confirmed:
+            rprint("[dim]Aborted.[/dim]")
+            raise typer.Exit(code=0)
+        if reason is None:
+            raw = typer.prompt("  Reason for dropping (optional, press Enter to skip)", default="")
+            reason = raw or None
+
+    try:
+        dropped, suggestion = service.drop_task(task_id, reason=reason)
+    except WSEError as e:
+        _abort_on_error(e)
+        return
+
+    rprint(f"[dim]⊘  Dropped[/dim]   #{dropped.id}  {dropped.title}")
+    if dropped.block_reason:
+        rprint(f"   [dim]Reason: {dropped.block_reason}[/dim]")
+
+    if suggestion:
+        rprint("\n[bold]Next up:[/bold]")
+        rprint(_fmt_task_line(suggestion))
+
+
+@app.command()
 def block(
     task_id: int = typer.Argument(..., help="ID of the task to block"),
     reason: str = typer.Option(..., "--reason", "-r", help="Why is it blocked?"),
@@ -200,7 +242,7 @@ def next_cmd():
 
 @app.command(name="list")
 def list_cmd(
-    all_tasks: bool = typer.Option(False, "--all", "-a", help="Include DONE tasks"),
+    all_tasks: bool = typer.Option(False, "--all", "-a", help="Include DONE and DROPPED tasks"),
 ):
     """List all tasks."""
     db.init_db()

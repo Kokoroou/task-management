@@ -16,6 +16,8 @@ task <command>
 
 # Run a single command manually (without install)
 python -m task_engine.main <command>
+
+task drop ID [--reason "why"]  # Drop a task no longer needed
 ```
 
 There is no test suite yet (v0.1.0 POC). There is no linter or formatter configured.
@@ -30,7 +32,7 @@ models.py → db.py → service.py → main.py
                                alerts.py (called from main.py only)
 ```
 
-**`models.py`** — Pure data. `TaskState` enum (TODO/ACTIVE/INTERRUPTED/BLOCKED/DONE) and `Task` dataclass with `from_row()` for SQLite deserialization.
+**`models.py`** — Pure data. `TaskState` enum (TODO/ACTIVE/INTERRUPTED/BLOCKED/DONE/DROPPED) and `Task` dataclass with `from_row()` for SQLite deserialization.
 
 **`db.py`** — All SQLite access. Single file at `~/.task_engine.db`. Every function opens and closes its own connection via `get_conn()` context manager (WAL mode, foreign keys on). `update_task()` is a generic kwargs-based updater used by the service layer.
 
