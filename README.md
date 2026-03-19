@@ -1,155 +1,157 @@
 # 🧠 Work State Engine (WSE)
 
-> A **CLI-first personal workflow system** giúp bạn luôn biết:  
-> ✅ *“Việc tiếp theo cần làm là gì”*  
-> ✅ *“Khi nào cần quay lại việc bị quên”*  
-> ✅ *“Làm sao resume mà không mất context”*
+> A **CLI-first personal workflow system** that always tells you:
+> ✅ *"What should I work on next?"*
+> ✅ *"When do I need to follow up on something waiting?"*
+> ✅ *"How do I resume without losing context?"*
 
 ---
 
-# 🎯 **Mục tiêu dự án**
+# 🎯 **Project Goal**
 
-WSE không phải là một todo app.
+WSE is not a todo app.
 
-Nó giải quyết 3 vấn đề thực tế:
+It solves 3 real problems:
 
-- ❌ Quên follow-up khi phụ thuộc người khác  
-- ❌ Bị interrupt và mất luôn task đang làm  
-- ❌ Quay lại task nhưng không biết bắt đầu từ đâu  
+- ❌ Forgetting to follow up when waiting on someone else
+- ❌ Getting interrupted and losing track of what you were doing
+- ❌ Coming back to a task with no idea where to start
 
-👉 Thay vì quản lý “danh sách việc”, WSE quản lý **trạng thái công việc (state)**.
+👉 Instead of managing a "list of things to do", WSE manages **task state**.
 
 ---
 
 # 🧠 **Core Concept**
 
-## 🔥 **State-based workflow (quan trọng nhất)**
+## 🔥 **State-based workflow**
 
-Mỗi task không chỉ là text, mà có **trạng thái rõ ràng**:
+Each task is not just text — it has a **clearly defined state**:
 
-- `TODO` → chưa bắt đầu  
-- `ACTIVE` → đang làm (chỉ có 1)  
-- `INTERRUPTED` → bị chen ngang  
-- `BLOCKED` → chờ external dependency  
-- `DONE` → hoàn thành  
-
----
-
-## ✅ **Nguyên tắc cốt lõi**
-
-### 1. **Chỉ có 1 ACTIVE task**
-→ giảm decision fatigue
+- `TODO` → not started
+- `ACTIVE` → currently being worked on (only 1 at a time)
+- `INTERRUPTED` → paused mid-way
+- `BLOCKED` → waiting on an external dependency
+- `DONE` → completed
 
 ---
 
-### 2. **Interrupt phải lưu context**
-→ khi bị chen ngang:
-- task cũ → `INTERRUPTED`
-- bắt buộc lưu `next_step`
+## ✅ **Core Rules**
+
+### 1. **Only 1 ACTIVE task at a time**
+→ reduces decision fatigue
 
 ---
 
-### 3. **Resume không cần suy nghĩ lại**
-→ mỗi task có:
+### 2. **Interruptions must save context**
+→ when switching tasks:  
+- the current task → `INTERRUPTED`
+- `next_step` is mandatory before switching
+
+---
+
+### 3. **Resume without re-thinking**
+→ every task carries:  
 ```
-next_step = "việc cụ thể tiếp theo"
+next_step = "the exact next action"  
 ```
 
 ---
 
-### 4. **Side task không được giết main task**
-- Task phụ → có `parent_id`
-- Task chính → `BLOCKED` (chờ task phụ)
+### 4. **Side tasks must not kill the main task**
+- Side task → has a `parent_id`
+- Main task → goes `BLOCKED` while waiting
 
 ---
 
 ### 5. **Auto-resume parent**
-→ Khi task con DONE:
-- system tự đề xuất quay lại task cha
+→ when a child task is DONE:  
+- the system automatically suggests resuming the parent task
 
 ---
 
-### 6. **Follow-up không bị quên**
-→ Task `BLOCKED` có:
+### 6. **Follow-ups are never forgotten**
+→ a `BLOCKED` task can have:  
 ```
-follow_up_at
+follow_up_at  
 ```
-
-→ system sẽ nhắc lại đúng lúc
+→ the system will remind you at the right time
 
 ---
 
-# ⚙️ **Workflow tổng thể**
+# ⚙️ **Overall Workflow**
 
 ```
-[Input CLI]
-   ↓
-[SQLite DB]
-   ↓
-[State Engine]
-   ↓
-[Next Task Selector]
-   ↓
-[CLI Output / Notification]
+[CLI Input]  
+   ↓  
+[SQLite DB]  
+   ↓  
+[State Engine]  
+   ↓  
+[Next Task Selector]  
+   ↓  
+[CLI Output / Notification]  
 ```
 
 ---
 
-# 🧩 **Các thành phần chính**
+# 🧩 **Components**
 
 ## ⚡ **1. CLI Interface**
-- `task add` → tạo task  
-- `task start` → bắt đầu task  
-- `task done` → hoàn thành  
-- `task block` → đánh dấu blocked  
-- `task next` → lấy task cần làm tiếp  
+- `task init` → initialise the database
+- `task add` → create a task
+- `task start` → start working on a task
+- `task done` → mark a task complete
+- `task block` → mark a task as blocked
+- `task next` → get the next recommended task
+- `task list` → list all tasks
+- `task show` → view details of a task
+- `task check-followup` → check for due follow-ups (for cron)
 
 ---
 
 ## 🗄️ **2. Storage (Single Source of Truth)**
 
 - SQLite (local file)
-- Không phụ thuộc dịch vụ bên ngoài
+- No external service dependency
 - Zero setup, zero latency
 
 ---
 
 ## 🧠 **3. State Engine**
 
-Xử lý logic:
+Handles:
 
-- Transition giữa các state
-- Enforce rule (1 ACTIVE, next_step bắt buộc khi interrupt)
-- Quản lý parent-child
+- State transitions between task states
+- Enforces rules (1 ACTIVE task, mandatory `next_step` on interrupt)
+- Manages parent-child relationships
 
 ---
 
 ## 🎯 **4. Next Task Selector**
 
-Ưu tiên:
+Priority order:
 
-1. `ACTIVE`  
-2. `INTERRUPTED` (mới nhất)  
-3. `BLOCKED` (đến hạn follow-up)  
-4. `TODO`  
+1. `ACTIVE` task (already running)
+2. Most recently updated `INTERRUPTED` task
+3. Oldest `TODO` task
 
-👉 Output luôn là **1 task duy nhất**
+👉 Always returns **exactly 1 task**
 
 ---
 
 ## 🔔 **5. Follow-up Alert System**
 
-- Chạy theo batch (30 phút)
-- Chỉ alert task `BLOCKED` đến hạn
-- Gom nhiều task thành 1 notification
+- Runs in batches (every 30 minutes via cron)
+- Only alerts on `BLOCKED` tasks that are due
+- Batches multiple tasks into a single notification
 
-👉 Tránh spam, không phá flow
+👉 No spam, no flow interruption
 
 ---
 
-# 🧱 **Data Model (simplified)**
+# 🧱 **Data Model**
 
-Task gồm:
+A task contains:
 
 - `id`
 - `title`
@@ -164,15 +166,15 @@ Task gồm:
 
 ---
 
-# 🔄 **Các flow quan trọng**
+# 🔄 **Key Flows**
 
 ## ✅ **Interrupt flow**
 
 ```
-Task A (ACTIVE)
-   ↓ (task B xuất hiện)
-Task A → INTERRUPTED + next_step
-Task B → ACTIVE
+Task A (ACTIVE)  
+   ↓ (Task B appears)  
+Task A → INTERRUPTED + next_step saved  
+Task B → ACTIVE  
 ```
 
 ---
@@ -180,14 +182,14 @@ Task B → ACTIVE
 ## ✅ **Side task flow**
 
 ```
-Task A (main)
-   ↓ cần env setup
+Task A (main)  
+   ↓ needs env setup  
 Task A → BLOCKED
 
 Task B (side) → ACTIVE
 
-Task B DONE
-   → gợi ý resume Task A
+Task B DONE  
+   → system suggests resuming Task A  
 ```
 
 ---
@@ -195,10 +197,9 @@ Task B DONE
 ## ✅ **Resume flow**
 
 ```
-task next
-→ trả về task INTERRUPTED gần nhất
-
-+ next_step
+task next  
+→ returns most recently updated INTERRUPTED task  
+→ shows saved next_step  
 ```
 
 ---
@@ -206,11 +207,11 @@ task next
 ## ✅ **Follow-up flow**
 
 ```
-Task BLOCKED + follow_up_at
+Task BLOCKED + follow_up_at set
 
-→ đến thời gian
-→ system alert
-→ đưa lại vào candidate list
+→ time is reached  
+→ system sends alert notification  
+→ task surfaces in candidate list  
 ```
 
 ---
@@ -218,157 +219,157 @@ Task BLOCKED + follow_up_at
 # ⚖️ **Design Decisions**
 
 ## ✅ **CLI-first**
-- Nhanh, ít friction
-- Cross-platform (Linux / Windows / WSL)
+- Fast, low friction
+- Cross-platform (Linux / Windows / WSL / macOS)
 
 ---
 
 ## ✅ **Local-first**
-- Không API
-- Không sync
-- Không latency
+- No API
+- No sync
+- No latency
 
 ---
 
 ## ✅ **No AI (v1)**
-- Không auto planning
-- Không estimation
+- No auto planning
+- No estimation
 
-👉 Giữ system deterministic và trustable
+👉 Keeps the system deterministic and trustworthy
 
 ---
 
 ## ✅ **Minimalism**
-- Không dashboard
-- Không kanban
-- Không UI phức tạp
+- No dashboard
+- No kanban board
+- No complex UI
 
 ---
 
-# ⚠️ **Non-goals (cố ý KHÔNG làm)**
+# ⚠️ **Non-goals (intentionally out of scope)**
 
-- ❌ Không thay thế Jira / Todoist  
-- ❌ Không scheduling phức tạp  
-- ❌ Không time tracking  
-- ❌ Không collaboration  
+- ❌ Not a replacement for Jira / Todoist
+- ❌ No complex scheduling
+- ❌ No time tracking
+- ❌ No collaboration
 
-👉 Đây là tool cá nhân, tập trung vào **execution**, không phải management.
+👉 This is a personal tool focused on **execution**, not management.
 
 ---
 
 # 🧠 **Mental Model**
 
-> Bạn không cần biết:
-> - có bao nhiêu task
+> You don't need to know:
+> - how many tasks you have
 
-> Bạn chỉ cần biết:
-> ✅ Task hiện tại  
-> ✅ Bước tiếp theo  
-> ✅ Khi nào quay lại việc khác  
+> You only need to know:
+> ✅ What you're working on right now
+> ✅ The exact next step
+> ✅ When to come back to something waiting
 
 ---
 
-# 🚀 **Roadmap (sau POC)**
+# 🚀 **Roadmap (post-POC)**
 
-## Phase 1 (hiện tại)
+## Phase 1 (current)
 - CLI
 - State machine
-- Follow-up alert
+- Follow-up alerts
 
 ---
 
 ## Phase 2 (UX)
 - Global hotkey input
-- Faster capture
+- Faster task capture
 
 ---
 
 ## Phase 3 (Visibility)
-- Overlay minimal / tmux status bar
+- Minimal overlay / tmux status bar
 
 ---
 
-## Phase 4 (Intelligence - optional)
-- Suggest next task tốt hơn
-- Pattern recognition (nhẹ, không AI nặng)
+## Phase 4 (Intelligence — optional)
+- Smarter next task suggestions
+- Lightweight pattern recognition (no heavy AI)
 
 ---
 
 # ✅ **Success Criteria**
 
-System thành công nếu:
+The system is working if:
 
-- Bạn dùng liên tục **3–5 ngày**
-- Không còn:
-  - quên task
-  - mất context khi resume
-  - drift khỏi main task
+- You use it consistently for **3–5 days**
+- You no longer experience:
+  - forgotten tasks
+  - lost context when resuming
+  - drifting away from your main task
 
 ---
 
 # 💣 **Failure Modes**
 
-- Input quá chậm → bỏ dùng  
-- Không ghi `next_step` → không resume được  
-- Alert spam → ignore toàn bộ  
-- Over-engineer → abandon project  
+- Input too slow → you stop using it
+- Skipping `next_step` → can't resume properly
+- Alert spam → you start ignoring everything
+- Over-engineering → project abandoned
 
 ---
 
-# 📌 **Triết lý cốt lõi**
+# 📌 **Core Philosophy**
 
-> ❗ Không tối ưu việc “lập kế hoạch”  
-> ✅ Tối ưu việc “tiếp tục làm việc”  
+> ❗ Not optimising for "planning"
+> ✅ Optimising for "continuing to make progress"
 
 ---
 
 # 👤 **Target User**
 
-- Dev / DevOps / Knowledge worker
-- Làm nhiều task song song
-- Bị interrupt thường xuyên
-- Không cần fancy UI, ưu tiên tốc độ &amp; hiệu quả
+- Dev / DevOps / knowledge worker
+- Juggling multiple tasks in parallel
+- Frequently interrupted
+- No need for fancy UI — speed and efficiency first
 
 ---
 
-# 🏁 **Kết luận**
+# 🏁 **Summary**
 
-WSE không giúp bạn làm nhiều việc hơn.
+WSE doesn't help you do more things.
 
-Nó giúp bạn:
-- **Không quên việc quan trọng**
-- **Không mất thời gian reload context**
-- **Luôn biết việc tiếp theo cần làm**
+It helps you:  
+- **Never forget what matters**
+- **Not waste time reloading context**
+- **Always know what to do next**
 
-→ Từ đó, bạn làm việc **ít stress hơn, tập trung hơn, và ổn định hơn**.
+→ So you work with **less stress, more focus, and more consistency**.
 
 ---
 
-# 🚀 **Cài đặt**
+# 🚀 **Installation**
 
-## Yêu cầu
+## Requirements
 
 - Python 3.9+
 - pip
 
-## Cài đặt
+## Install
 
 ```bash
-# Clone project
-git clone <repo-url>
+# Clone the repo
+git clone <repo-url>  
 cd task-management
 
-# Cài đặt (editable mode để phát triển)
+# Install in editable mode (for development)
 pip install -e .
 
-# Hoặc cài thẳng
-pip install .
+# Or install normally
+pip install .  
 ```
 
-Windows — cài thêm toast notification (tuỳ chọn):
+Windows — install toast notifications (optional):
 
 ```bash
-pip install "work-state-engine[windows]"
+pip install "work-state-engine[windows]"  
 ```
 
 ---
@@ -376,82 +377,82 @@ pip install "work-state-engine[windows]"
 # ⚡ **Quick Start**
 
 ```bash
-# Khởi tạo database (lần đầu)
+# Initialise the database (first time only)
 task init
 
-# Thêm task
-task add "Code feature A"
+# Add tasks
+task add "Code feature A"  
 task add "Fix urgent bug"
 
-# Bắt đầu task 1
+# Start task 1
 task start 1
 
-# Bị chen ngang bởi bug → phải điền next_step
-task start 2
-# ▶ WSE hỏi: "Where did you leave off?"
-# → nhập: "Đang viết function parse_config, dở dang ở line 42"
+# Get interrupted by a bug → must fill in next_step
+task start 2  
+# ▶ WSE prompts: "Where did you leave off?"
+# → type: "Writing function parse_config, stopped at line 42"
 
-# Xong bug
-task done 2
-# ✔ Gợi ý resume task 1 (vì có parent/interrupted)
+# Finish the bug fix
+task done 2  
+# ✔ Suggests resuming task 1 (interrupted with saved context)
 
-# Xem task tiếp theo
+# See what to work on next
 task next
 
-# Xem danh sách
+# List all tasks
 task list
 
-# Block task đang chờ người khác
-task block 1 --reason "Chờ review từ team" --follow-up "2025-03-20 09:00"
+# Block a task waiting on someone
+task block 1 --reason "Waiting for team review" --follow-up "2025-03-20 09:00"  
 ```
 
 ---
 
-# 📋 **Tất cả commands**
+# 📋 **All Commands**
 
-| Command | Mô tả |
+| Command | Description |
 |---|---|
-| `task init` | Khởi tạo database |
-| `task add "title"` | Thêm task mới |
-| `task add "title" --parent ID` | Thêm sub-task |
-| `task start ID` | Bắt đầu task (auto interrupt task cũ) |
-| `task start ID --next-step "..."` | Bắt đầu + ghi next_step luôn |
-| `task done ID` | Hoàn thành task |
-| `task block ID --reason "..."` | Đánh dấu blocked |
-| `task block ID --reason "..." --follow-up "YYYY-MM-DD HH:MM"` | Blocked + đặt nhắc |
-| `task next` | Xem task tiếp theo cần làm |
-| `task list` | Danh sách task (bỏ DONE) |
-| `task list --all` | Tất cả task kể cả DONE |
-| `task show ID` | Chi tiết 1 task |
-| `task check-followup` | Kiểm tra & gửi alert (dùng cho cron) |
+| `task init` | Initialise the database |
+| `task add "title"` | Add a new task |
+| `task add "title" --parent ID` | Add a sub-task |
+| `task start ID` | Start a task (auto-interrupts the current one) |
+| `task start ID --next-step "..."` | Start a task and pre-fill next_step for the current one |
+| `task done ID` | Mark a task as done |
+| `task block ID --reason "..."` | Mark a task as blocked |
+| `task block ID --reason "..." --follow-up "YYYY-MM-DD HH:MM"` | Block a task and set a follow-up reminder |
+| `task next` | Show the next recommended task |
+| `task list` | List active tasks (excludes DONE) |
+| `task list --all` | List all tasks including DONE |
+| `task show ID` | Show full details of a task |
+| `task check-followup` | Check and send alerts for due follow-ups (cron use) |
 
 ---
 
-# 🔔 **Cài đặt Cron / Scheduler (Follow-up Alert)**
+# 🔔 **Setting Up Cron / Scheduler (Follow-up Alerts)**
 
 ## Linux / WSL
 
-Thêm vào crontab (`crontab -e`):
+Add to crontab (`crontab -e`):
 
 ```cron
 */30 * * * * /usr/local/bin/task check-followup
 ```
 
-Nếu dùng virtual environment:
+If using a virtual environment:
 
 ```cron
 */30 * * * * /path/to/venv/bin/task check-followup
 ```
 
-Notification dùng `notify-send`. Trên WSL, cần cài thêm `wslu`:
+Notifications use `notify-send`. On WSL, install `wslu`:
 
 ```bash
-sudo apt install libnotify-bin wslu
+sudo apt install libnotify-bin wslu  
 ```
 
 ## Windows (Task Scheduler)
 
-1. Mở **Task Scheduler** → Create Basic Task
+1. Open **Task Scheduler** → Create Basic Task
 2. Name: `WSE Follow-up Alert`
 3. Trigger: Daily, repeat every **30 minutes**
 4. Action: Start a program
@@ -459,27 +460,27 @@ sudo apt install libnotify-bin wslu
    - Arguments: `check-followup`
 5. Finish
 
-Notification dùng PowerShell toast (built-in) hoặc cài thêm:
+Notifications use PowerShell toast (built-in) or install:
 
 ```bash
-pip install win10toast
+pip install win10toast  
 ```
 
 ---
 
-# 🗂️ **Cấu trúc project**
+# 🗂️ **Project Structure**
 
 ```
-task-management/
-├── task_engine/
-│   ├── __init__.py     # Package metadata
-│   ├── models.py       # Data models (Task, TaskState)
-│   ├── db.py           # SQLite layer
-│   ├── service.py      # Business logic / state machine
-│   ├── main.py         # Typer CLI commands
-│   └── alerts.py       # Cross-platform notifications
-├── pyproject.toml      # Package config & entry points
-└── README.md
+task-management/  
+├── task_engine/  
+│   ├── __init__.py     # Package metadata  
+│   ├── models.py       # Data models (Task, TaskState)  
+│   ├── db.py           # SQLite layer  
+│   ├── service.py      # Business logic / state machine  
+│   ├── main.py         # Typer CLI commands  
+│   └── alerts.py       # Cross-platform notifications  
+├── pyproject.toml      # Package config & entry points  
+└── README.md  
 ```
 
 Database: `~/.task_engine.db` (SQLite, local file)

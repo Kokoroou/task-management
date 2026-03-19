@@ -211,7 +211,7 @@ def list_cmd(
 
     table = Table(show_header=True, header_style="bold", box=None, pad_edge=False)
     table.add_column("ID", style="dim", width=4)
-    table.add_column("State", width=12)
+    table.add_column("State", width=14)
     table.add_column("Title")
     table.add_column("Next Step / Reason", style="italic cyan")
 
