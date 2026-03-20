@@ -201,7 +201,7 @@ def drop(
 @app.command()
 def block(
     task_id: int = typer.Argument(..., help="ID of the task to block"),
-    reason: str = typer.Option(..., "--reason", "-r", help="Why is it blocked?"),
+    reason: Optional[str] = typer.Option(None, "--reason", "-r", help="Why is it blocked?"),
     follow_up: Optional[str] = typer.Option(
         None,
         "--follow-up", "-f",
@@ -210,6 +210,12 @@ def block(
 ):
     """Mark a task as BLOCKED with an optional follow-up reminder."""
     db.init_db()
+
+    if not reason:
+        task = db.fetch_task(task_id)
+        if task is not None:
+            rprint(f"[bold red]✖  Blocking[/bold red] #{task.id}  \"{task.title}\"")
+        reason = typer.prompt("  Why is this task blocked?")
 
     follow_up_dt: Optional[datetime] = None
     if follow_up:
