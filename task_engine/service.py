@@ -100,13 +100,8 @@ def start_task(task_id: int, next_step_for_current: Optional[str] = None) -> Tup
             next_step=next_step_for_current,
         )
 
-    # Activate requested task — clear stale block_reason / next_step
-    active = db.update_task(
-        task_id,
-        state=TaskState.ACTIVE.value,
-        block_reason=None,
-        next_step=None,
-    )
+    # Activate requested task
+    active = db.update_task(task_id, state=TaskState.ACTIVE.value)
     return interrupted, active
 
 

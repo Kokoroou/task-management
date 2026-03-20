@@ -39,7 +39,7 @@ models.py → db.py → service.py → main.py
 
 **`service.py`** — All business rules live here. Key constraints enforced:
 - Only one `ACTIVE` task at a time — `start_task()` raises `WSEError` if no `next_step` is provided when interrupting
-- `start_task()` clears `block_reason` and `next_step` on the newly activated task (stale data from previous states)
+- `start_task()` preserves `block_reason` and `next_step` on the newly activated task — these fields are only cleared by explicit user action (`task update ID --next-step ""`)
 - `next_task()` priority: ACTIVE → most-recently-updated INTERRUPTED → oldest TODO (BLOCKED tasks are never returned by `next_task()`)
 - `done_task()` returns a suggestion: parent task (if sub-task) or next_task() result
 - `update_task_fields()` allows editing `next_step` in-place without state change (for ACTIVE tasks)
