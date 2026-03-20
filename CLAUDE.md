@@ -1,6 +1,7 @@
 # CLAUDE.md
 
-Project instructions for Claude Code. Read this file at the start of every session to understand the project's working culture and technical standards.
+> **What is this file?**  
+> `CLAUDE.md` is the "project handbook" for Claude Code — read automatically at the start of every session. It defines the working culture and technical standards of this project so Claude behaves like a member of the team, not a generic AI assistant. Think of it as the equivalent of `.gitignore` for Git, but for Claude: it tells Claude what rules, conventions, and constraints apply here.
 
 ## Project Overview
 
@@ -17,6 +18,8 @@ The core insight: at any moment you should have at most one ACTIVE task, and eve
 - **Platform notifications** — `notify-send` (Linux), `osascript` (macOS), `win10toast` / PowerShell (Windows)
 
 No ORM. No async. No external database server. Dependencies are intentionally minimal.
+
+Do **not** suggest alternative libraries (e.g. Click, SQLAlchemy, Textual) unless the user explicitly asks to evaluate them.
 
 ## Workflows
 
@@ -54,7 +57,7 @@ task check-followup                             # Check overdue blocked tasks (r
 
 ## Architecture
 
-Strict 4-layer pipeline — no circular dependencies, no layer skipping:
+Strict 4-layer pipeline — **no circular dependencies, no layer skipping**:
 
 ```
 models.py → db.py → service.py → main.py
@@ -84,6 +87,7 @@ models.py → db.py → service.py → main.py
 - **Field clearing convention**: `None` as a function argument means "do not touch this field". `""` (empty string) means "clear this field" — the service layer converts `""` to `None` before writing to the database.
 - **No silent mutations**: every state change must go through `service.py`. `main.py` never writes to the database directly.
 - **Idempotent init**: `db.init_db()` is called at the start of every CLI command so no prior `task init` is ever required.
+- **Style**: use `snake_case` for variables and functions, `PascalCase` for classes. Keep functions short and single-purpose.
 
 ## Key Behaviours to Preserve
 
@@ -91,8 +95,12 @@ models.py → db.py → service.py → main.py
 - `check-followup` is silent when there is nothing to do (no output, exit 0) — cron-friendly by design.
 - `update_task()` in `db.py` only modifies the columns passed as kwargs; unmentioned columns are untouched.
 
-## Testing
+## Testing Requirements
 
 There is no test suite yet (v0.1.0 POC). There is no linter or formatter configured.
 
-When tests are added, use **pytest**. Place test files under `tests/`. Mirror the module structure: `tests/test_service.py`, `tests/test_db.py`, etc. Use an in-memory SQLite database (`:memory:`) to keep tests isolated and fast.
+When tests are added:
+- Use **pytest** as the test framework — no alternatives.
+- Place test files under `tests/`, mirroring the module structure: `tests/test_service.py`, `tests/test_db.py`, etc.
+- Use an in-memory SQLite database (`:memory:`) to keep tests isolated and fast.
+- **Always write or update tests after modifying `service.py` or `db.py`.** New business rules must have corresponding test coverage.
