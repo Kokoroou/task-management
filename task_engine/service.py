@@ -108,8 +108,12 @@ def start_task(task_id: int, next_step_for_current: Optional[str] = None) -> Tup
 # ──────────────────────────── update ─────────────────────────────────
 
 
-def update_task_fields(task_id: int, next_step: Optional[str] = None) -> Task:
-    """Update mutable fields of a task (e.g. next_step) without changing state."""
+def update_task_fields(
+    task_id: int,
+    next_step: Optional[str] = None,
+    block_reason: Optional[str] = None,
+) -> Task:
+    """Update mutable fields of a task (next_step, block_reason) without changing state."""
     task = db.fetch_task(task_id)
     if task is None:
         raise WSEError(f"Task #{task_id} not found.")
@@ -119,6 +123,8 @@ def update_task_fields(task_id: int, next_step: Optional[str] = None) -> Task:
     updates: dict = {}
     if next_step is not None:
         updates["next_step"] = next_step if next_step != "" else None
+    if block_reason is not None:
+        updates["block_reason"] = block_reason if block_reason != "" else None
 
     if not updates:
         return task

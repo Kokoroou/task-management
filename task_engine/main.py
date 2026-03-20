@@ -8,6 +8,8 @@ Usage:
     task drop ID [--reason "why"]
     task block ID --reason "Waiting for..." [--follow-up "2025-03-20 09:00"]
     task update ID --next-step "New next step"
+    task update ID --block-reason "New block reason"
+    task update ID --next-step "" --block-reason ""  # clear both
     task next
     task list [--all]
     task show ID
@@ -298,11 +300,16 @@ def update_cmd(
         "--next-step", "-n",
         help="Update the 'next step' note (use '' to clear it)",
     ),
+    block_reason: Optional[str] = typer.Option(
+        None,
+        "--block-reason", "-r",
+        help="Update the block reason note (use '' to clear it)",
+    ),
 ):
-    """Update mutable fields of a task (e.g. next step) without changing state."""
+    """Update mutable fields of a task (next step, block reason) without changing state."""
     db.init_db()
     try:
-        task = service.update_task_fields(task_id, next_step=next_step)
+        task = service.update_task_fields(task_id, next_step=next_step, block_reason=block_reason)
     except service.WSEError as e:
         _abort_on_error(e)
         return
@@ -310,8 +317,12 @@ def update_cmd(
     rprint(f"[green]✔ Updated[/green] #{task.id}  {task.title}")
     if task.next_step:
         rprint(f"     [italic cyan]→ next: {task.next_step}[/italic cyan]")
-    else:
+    elif next_step is not None:
         rprint("     [italic dim]→ next step cleared[/italic dim]")
+    if task.block_reason:
+        rprint(f"     [italic red]✖ reason: {task.block_reason}[/italic red]")
+    elif block_reason is not None:
+        rprint("     [italic dim]✖ block reason cleared[/italic dim]")
 
 
 @app.command(name="check-followup")

@@ -18,7 +18,9 @@ task <command>
 python -m task_engine.main <command>
 
 task drop ID [--reason "why"]  # Drop a task no longer needed
-task update ID --next-step "..."  # Update next step note without changing state
+task update ID --next-step "..."              # Update next step note without changing state
+task update ID --block-reason "..."          # Update block reason without changing state
+task update ID --next-step "" --block-reason ""  # Clear both fields
 ```
 
 There is no test suite yet (v0.1.0 POC). There is no linter or formatter configured.
@@ -42,7 +44,7 @@ models.py → db.py → service.py → main.py
 - `start_task()` preserves `block_reason` and `next_step` on the newly activated task — these fields are only cleared by explicit user action (`task update ID --next-step ""`)
 - `next_task()` priority: ACTIVE → most-recently-updated INTERRUPTED → oldest TODO (BLOCKED tasks are never returned by `next_task()`)
 - `done_task()` returns a suggestion: parent task (if sub-task) or next_task() result
-- `update_task_fields()` allows editing `next_step` in-place without state change (for ACTIVE tasks)
+- `update_task_fields()` allows editing `next_step` and `block_reason` in-place without state change; pass `""` to clear either field
 
 **`main.py`** — Typer CLI, Rich formatting only. No business logic. Each command calls `db.init_db()` first (idempotent), then delegates to `service`. Errors from `WSEError` are caught and printed; all other exceptions surface normally.
 
