@@ -7,6 +7,7 @@ Usage:
     task done ID
     task drop ID [--reason "why"]
     task block ID --reason "Waiting for..." [--follow-up "2025-03-20 09:00"]
+    task update ID --next-step "New next step"
     task next
     task list [--all]
     task show ID
@@ -287,6 +288,30 @@ def show(
     rprint(f"  Updated:  {task.updated_at}")
     if task.follow_up_at:
         rprint(f"  Follow-up: {task.follow_up_at}")
+
+
+@app.command(name="update")
+def update_cmd(
+    task_id: int = typer.Argument(..., help="Task ID"),
+    next_step: Optional[str] = typer.Option(
+        None,
+        "--next-step", "-n",
+        help="Update the 'next step' note (use '' to clear it)",
+    ),
+):
+    """Update mutable fields of a task (e.g. next step) without changing state."""
+    db.init_db()
+    try:
+        task = service.update_task_fields(task_id, next_step=next_step)
+    except service.WSEError as e:
+        _abort_on_error(e)
+        return
+
+    rprint(f"[green]✔ Updated[/green] #{task.id}  {task.title}")
+    if task.next_step:
+        rprint(f"     [italic cyan]→ next: {task.next_step}[/italic cyan]")
+    else:
+        rprint("     [italic dim]→ next step cleared[/italic dim]")
 
 
 @app.command(name="check-followup")

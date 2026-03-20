@@ -100,9 +100,35 @@ def start_task(task_id: int, next_step_for_current: Optional[str] = None) -> Tup
             next_step=next_step_for_current,
         )
 
-    # Activate requested task
-    active = db.update_task(task_id, state=TaskState.ACTIVE.value)
+    # Activate requested task — clear stale block_reason / next_step
+    active = db.update_task(
+        task_id,
+        state=TaskState.ACTIVE.value,
+        block_reason=None,
+        next_step=None,
+    )
     return interrupted, active
+
+
+# ──────────────────────────── update ─────────────────────────────────
+
+
+def update_task_fields(task_id: int, next_step: Optional[str] = None) -> Task:
+    """Update mutable fields of a task (e.g. next_step) without changing state."""
+    task = db.fetch_task(task_id)
+    if task is None:
+        raise WSEError(f"Task #{task_id} not found.")
+    if task.state in (TaskState.DONE, TaskState.DROPPED):
+        raise WSEError(f"Task #{task_id} is {task.state.value} — cannot update it.")
+
+    updates: dict = {}
+    if next_step is not None:
+        updates["next_step"] = next_step if next_step != "" else None
+
+    if not updates:
+        return task
+
+    return db.update_task(task_id, **updates)
 
 
 # ──────────────────────────── done ───────────────────────────────────

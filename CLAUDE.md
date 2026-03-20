@@ -18,6 +18,7 @@ task <command>
 python -m task_engine.main <command>
 
 task drop ID [--reason "why"]  # Drop a task no longer needed
+task update ID --next-step "..."  # Update next step note without changing state
 ```
 
 There is no test suite yet (v0.1.0 POC). There is no linter or formatter configured.
@@ -38,8 +39,10 @@ models.py → db.py → service.py → main.py
 
 **`service.py`** — All business rules live here. Key constraints enforced:
 - Only one `ACTIVE` task at a time — `start_task()` raises `WSEError` if no `next_step` is provided when interrupting
+- `start_task()` clears `block_reason` and `next_step` on the newly activated task (stale data from previous states)
 - `next_task()` priority: ACTIVE → most-recently-updated INTERRUPTED → oldest TODO (BLOCKED tasks are never returned by `next_task()`)
 - `done_task()` returns a suggestion: parent task (if sub-task) or next_task() result
+- `update_task_fields()` allows editing `next_step` in-place without state change (for ACTIVE tasks)
 
 **`main.py`** — Typer CLI, Rich formatting only. No business logic. Each command calls `db.init_db()` first (idempotent), then delegates to `service`. Errors from `WSEError` are caught and printed; all other exceptions surface normally.
 
