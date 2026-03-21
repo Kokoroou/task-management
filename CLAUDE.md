@@ -40,12 +40,13 @@ python -m task_engine.main <command>
 ### Common CLI commands
 
 ```bash
-task init                                       # Initialise the DB (safe to re-run)
+task                                            # Show next task (shorthand — no subcommand needed)
 task add "Task title" [--parent ID]             # Add a new TODO task
 task start ID [--next-step "Where I left off"]  # Start a task; interrupts the current one
 task done ID                                    # Mark a task DONE
-task drop ID [--reason "why"]                   # Drop a task no longer needed
-task block ID --reason "Waiting for..." [--follow-up "2025-03-20 09:00"]
+task drop ID [--reason "why"]                   # Drop a task no longer needed (soft delete)
+task block ID [--reason "Waiting for..."] [--follow-up "2026-03-25 09:00"]
+task update ID [--title "New title"]            # Rename a task
 task update ID --next-step "New next step"      # Update next step note without changing state
 task update ID --block-reason "New reason"      # Update block reason without changing state
 task update ID --next-step "" --block-reason "" # Clear both fields
@@ -53,7 +54,10 @@ task next                                       # Show the best task to work on 
 task list [--all]                               # List tasks (--all includes DONE/DROPPED)
 task show ID                                    # Show full details of a task
 task check-followup                             # Check overdue blocked tasks (run from cron)
+task delete ID                                  # Permanently delete a task (with confirmation)
 ```
+
+**Interactive prompts**: `task start` prompts for `next_step` if switching tasks without `--next-step`. `task block` prompts for reason if `--reason` is omitted. `task drop` asks for confirmation when dropping an ACTIVE task. `task delete` always asks for confirmation.
 
 ## Architecture
 
@@ -61,8 +65,10 @@ Strict 4-layer pipeline — **no circular dependencies, no layer skipping**:
 
 ```
 models.py → db.py → service.py → main.py
-                                     ↑
-                               alerts.py (called from main.py only)
+                                      ↑
+                  commands/ (lifecycle, query, update, system)
+                  cli_utils.py (shared helpers — no business logic)
+                  alerts.py (called from commands/system.py only)
 ```
 
 **`models.py`** — Pure data layer. `TaskState` enum (TODO / ACTIVE / INTERRUPTED / BLOCKED / DONE / DROPPED) and `Task` dataclass with `from_row()` for SQLite deserialization. No logic here.
@@ -74,18 +80,27 @@ models.py → db.py → service.py → main.py
 - `start_task()` **preserves** `next_step` and `block_reason` on the newly activated task. These fields are historical context and are only cleared by explicit user action (`task update ID --next-step ""`).
 - `next_task()` priority: ACTIVE → most-recently-updated INTERRUPTED → oldest TODO. BLOCKED tasks are never returned by `next_task()`.
 - `done_task()` returns a suggestion: parent task (if sub-task and not yet done) or `next_task()` result.
-- `update_task_fields()` edits `next_step` and `block_reason` in-place without changing state. Pass `""` to clear either field.
+- `update_task_fields()` edits `title`, `next_step`, and `block_reason` in-place without changing state. Pass `""` to clear either text field.
+- `delete_task()` hard-deletes a task row; raises `WSEError` if not found.
 
-**`main.py`** — Typer CLI and Rich formatting only. No business logic. Every command calls `db.init_db()` first (idempotent), then delegates to `service`. `WSEError` exceptions are caught and printed; all other exceptions surface normally.
+**`cli_utils.py`** — Shared CLI helpers: `STATE_STYLE`, `STATE_ICON`, `_fmt_task_line()`, and `_abort_on_error()`. Imported by all `commands/` submodules. No business logic here.
 
-**`alerts.py`** — Notification dispatch only, called from `main.py`'s `check-followup` command. Platform detection: Linux → `notify-send`, macOS → `osascript`, Windows → `win10toast` or PowerShell fallback, fallback → stdout print.
+**`main.py`** — Typer app definition, callback (bare `task` shows next task), and command registration. Delegates to `commands/` submodules — contains **zero** business logic and **zero** direct DB calls.
+
+**`commands/`** — CLI commands grouped by concern:
+- `lifecycle.py` — `add`, `start`, `done`, `drop`
+- `query.py` — `next`, `list`, `show`
+- `update.py` — `update`, `block`
+- `system.py` — `init`, `check-followup`, `delete`
+
+**`alerts.py`** — Notification dispatch only, called from `commands/system.py`'s `check-followup` command. Platform detection: Linux → `notify-send`, macOS → `osascript`, Windows → `win10toast` or PowerShell fallback, fallback → stdout print.
 
 ## Coding Standards
 
-- **Layer discipline**: never call `db.*` from `main.py`; never call `service.*` from `db.py`. The 4-layer order is absolute.
-- **Error handling**: raise `WSEError` for domain-level user errors in `service.py`. Let it propagate to `main.py` where it is caught and printed without a traceback. All other exceptions are unexpected and should surface normally.
+- **Layer discipline**: never call `db.*` from `main.py` or `commands/`; never call `service.*` from `db.py`. The 4-layer order is absolute.
+- **Error handling**: raise `WSEError` for domain-level user errors in `service.py`. Let it propagate to `commands/` where it is caught via `_abort_on_error()` and printed without a traceback. All other exceptions are unexpected and should surface normally.
 - **Field clearing convention**: `None` as a function argument means "do not touch this field". `""` (empty string) means "clear this field" — the service layer converts `""` to `None` before writing to the database.
-- **No silent mutations**: every state change must go through `service.py`. `main.py` never writes to the database directly.
+- **No silent mutations**: every state change must go through `service.py`. `commands/` never writes to the database directly.
 - **Idempotent init**: `db.init_db()` is called at the start of every CLI command so no prior `task init` is ever required.
 - **Style**: use `snake_case` for variables and functions, `PascalCase` for classes. Keep functions short and single-purpose.
 
@@ -94,10 +109,31 @@ models.py → db.py → service.py → main.py
 - `start_task()` in `service.py` requires `next_step_for_current` when interrupting an active task — enforced at the service layer, not just the CLI prompt.
 - `check-followup` is silent when there is nothing to do (no output, exit 0) — cron-friendly by design.
 - `update_task()` in `db.py` only modifies the columns passed as kwargs; unmentioned columns are untouched.
+- Bare `task` (no subcommand) shows the next task — same as `task next`.
+
+## Dev Tools
+
+Configured in `pyproject.toml` under `[project.optional-dependencies] dev`:
+
+```bash
+# Install dev dependencies
+pip install -e ".[dev]"
+
+# Linting & formatting (Ruff replaces black + isort + flake8)
+ruff check .
+ruff format .
+
+# Type checking
+mypy task_engine/
+
+# Testing
+pytest
+pytest --cov=task_engine
+```
 
 ## Testing Requirements
 
-There is no test suite yet (v0.1.0 POC). There is no linter or formatter configured.
+There is no test suite yet (v0.1.0 POC). Ruff and mypy are configured but not enforced in CI.
 
 When tests are added:
 - Use **pytest** as the test framework — no alternatives.

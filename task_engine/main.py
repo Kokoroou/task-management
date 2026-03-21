@@ -1,7 +1,6 @@
 """CLI interface for Work State Engine (WSE).
 
 Usage:
-    task init
     task add "Title of new task" [--parent ID]
     task start ID [--next-step "Where I left off..."]
     task done ID

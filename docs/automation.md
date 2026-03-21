@@ -16,11 +16,27 @@ If using a virtual environment:
 */30 * * * * /path/to/venv/bin/task check-followup
 ```
 
-Notifications use `notify-send`. On WSL, install `wslu`:
+Notifications use `notify-send`. Install it:
 
 ```bash
-sudo apt install libnotify-bin wslu  
+sudo apt install libnotify-bin
 ```
+
+On WSL, also install `wslu` to enable native Windows notifications:
+
+```bash
+sudo apt install wslu
+```
+
+### macOS
+
+Add to crontab (`crontab -e`):
+
+```cron
+*/30 * * * * /usr/local/bin/task check-followup
+```
+
+Notifications use `osascript` (built-in on macOS — no extra install needed).
 
 ### Windows (Task Scheduler)
 
@@ -32,8 +48,18 @@ sudo apt install libnotify-bin wslu
    - Arguments: `check-followup`
 5. Finish
 
-Notifications use PowerShell toast (built-in) or install:
+Notifications use PowerShell toast (built-in) or install win10toast for richer notifications:
 
 ```bash
-pip install win10toast  
+pip install win10toast
+# or during project install:
+pip install -e ".[windows]"
 ```
+
+---
+
+## 🔕 **Behaviour**
+
+- `task check-followup` is **silent** (no output, exit 0) when no tasks are due — safe for cron.
+- When tasks are due, it sends a **batched desktop notification** (one notification for all overdue tasks) and prints each overdue task to stdout.
+- After alerting, `last_alerted_at` is updated so the same task is not re-notified for the same follow-up time.

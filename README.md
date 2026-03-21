@@ -21,12 +21,15 @@
 ## ⚡ Quick Start (Preview)
 
 ```bash
-# Initialise
-task init
+# Install
+pip install -e .
 
-# Add and start
+# Add and start working
 task add "My first task"
 task start 1
+
+# Just run `task` with no arguments to see what's next
+task
 ```
 
 For full instructions, see the [Usage Guide](docs/usage.md).
@@ -36,11 +39,18 @@ For full instructions, see the [Usage Guide](docs/usage.md).
 ## 🛠️ Project Structure
 
 ```
-task-management/  
-├── task_engine/        # Core logic
-├── docs/               # Documentation
-├── pyproject.toml      # Configuration
-└── README.md           # Entry point
+task-management/
+├── task_engine/            # Core logic
+│   ├── models.py           # Task dataclass & TaskState enum
+│   ├── db.py               # SQLite layer
+│   ├── service.py          # State machine & business rules
+│   ├── cli_utils.py        # Shared CLI formatting helpers
+│   ├── alerts.py           # Cross-platform notifications
+│   ├── main.py             # Typer app entry point
+│   └── commands/           # CLI commands (lifecycle, query, update, system)
+├── docs/                   # Documentation
+├── pyproject.toml          # Build config & dev tools
+└── README.md               # Entry point
 ```
 
 ---
