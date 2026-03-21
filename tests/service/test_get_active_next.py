@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import sqlite3
 
-import pytest
-
 from task_engine import db, service
 from task_engine.models import TaskState
 from tests.conftest import make_task
