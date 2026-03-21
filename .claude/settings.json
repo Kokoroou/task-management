@@ -1,38 +1,57 @@
 {
-  "hooks": [
-    {
-      "comment": "1. Format & Lint: Lightning fast with Ruff",
-      "event": "post-tool",
-      "toolMatcher": "Edit",
-      "argMatcher": ".*\\.py$",
-      "type": "command",
-      "command": "ruff check --fix $ARGUMENTS && ruff format $ARGUMENTS"
-    },
-    {
-      "comment": "2. Environment Update: Keep pure pip install",
-      "event": "pre-task",
-      "type": "command",
-      "command": "pip install -e .[dev]"
-    },
-    {
-      "comment": "3. Security Guard: Prevent dangerous Bash commands",
-      "event": "pre-tool",
-      "toolMatcher": "Bash",
-      "argMatcher": ".*(rm -rf|drop database|kubectl delete|docker rm).*",
-      "type": "command",
-      "command": "echo 'SECURITY WARNING: Command blocked by Local Hook!' && exit 1"
-    },
-    {
-      "comment": "4. Type Checking: Run mypy only once at the end of the task",
-      "event": "post-task",
-      "type": "command",
-      "command": "mypy ."
-    },
-    {
-      "comment": "5. Testing & Coverage: Run final unit tests",
-      "event": "post-task",
-      "type": "command",
-      "command": "pytest tests/ --cov=task_engine"
-    }
-  ]
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pip install -e .[dev]",
+            "statusMessage": "Updating dev dependencies..."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$ARGUMENTS\" | grep -qE \"(rm -rf|drop database|kubectl delete|docker rm)\"; then echo 'SECURITY WARNING: Command blocked by Local Hook!' && exit 2; else exit 0; fi",
+            "statusMessage": "Checking Bash security rules..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ruff check --fix $ARGUMENTS && ruff format $ARGUMENTS",
+            "statusMessage": "Formatting with Ruff..."
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "mypy .",
+            "statusMessage": "Running Type Check..."
+          },
+          {
+            "type": "command",
+            "command": "pytest tests/ --cov=task_engine",
+            "statusMessage": "Running Unit Tests..."
+          }
+        ]
+      }
+    ]
+  }
 }

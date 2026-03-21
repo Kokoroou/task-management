@@ -19,7 +19,6 @@ Usage:
 
 from __future__ import annotations
 
-import sys
 from datetime import datetime
 from typing import Optional
 
@@ -38,8 +37,22 @@ app = typer.Typer(
     help="Work State Engine — CLI-first personal workflow tool.",
     add_completion=False,
     pretty_exceptions_show_locals=False,
+    invoke_without_command=True,
 )
 console = Console()
+
+
+@app.callback()
+def main_callback(ctx: typer.Context):
+    """Work State Engine — run `task` to see what's next, or `task --help` for all commands."""
+    if ctx.invoked_subcommand is None:
+        db.init_db()
+        t = service.next_task()
+        if t is None:
+            rprint("[dim]No tasks pending — you're all clear! 🎉[/dim]")
+        else:
+            rprint("[bold]Next task:[/bold]")
+            rprint(_fmt_task_line(t))
 
 # ─────────────────── state color mapping ────────────────────────────
 
@@ -83,7 +96,7 @@ def _abort_on_error(exc: WSEError) -> None:
 # ─────────────────────────── commands ────────────────────────────────
 
 
-@app.command()
+@app.command(hidden=True)
 def init():
     """Initialise the database (safe to run multiple times)."""
     db.init_db()
@@ -353,6 +366,35 @@ def check_followup():
     for t in tasks:
         service.mark_task_alerted(t.id)
         rprint(f"[yellow]⏰ Follow-up:[/yellow] #{t.id} {t.title}")
+
+
+@app.command(name="delete")
+def delete_cmd(
+    task_id: int = typer.Argument(..., help="ID of the task to permanently delete"),
+):
+    """Permanently delete a task from the database (cannot be undone)."""
+    db.init_db()
+    task = db.fetch_task(task_id)
+    if task is None:
+        rprint(f"[bold red]Error:[/bold red] Task #{task_id} not found.")
+        raise typer.Exit(code=1)
+
+    rprint(
+        f"[bold red]⚠  This will permanently delete[/bold red] "
+        f"#{task.id} \"{task.title}\" [dim]({task.state.value})[/dim]"
+    )
+    confirmed = typer.confirm("  Are you sure?", default=False)
+    if not confirmed:
+        rprint("[dim]Aborted.[/dim]")
+        raise typer.Exit(code=0)
+
+    try:
+        service.delete_task(task_id)
+    except WSEError as e:
+        _abort_on_error(e)
+        return
+
+    rprint(f"[dim]🗑  Deleted[/dim]   #{task.id}  {task.title}")
 
 
 def main() -> None:

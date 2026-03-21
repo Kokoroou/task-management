@@ -153,6 +153,13 @@ def mark_alerted(task_id: int) -> None:
     update_task(task_id, last_alerted_at=_now())
 
 
+def delete_task(task_id: int) -> bool:
+    """Hard-delete a task by ID. Returns True if a row was deleted."""
+    with get_conn() as conn:
+        cursor = conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+        return cursor.rowcount > 0
+
+
 # ─────────────────────────── helpers ─────────────────────────────────
 
 

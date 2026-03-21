@@ -37,5 +37,8 @@ Thumbs.db
 .env
 .env.*
 
+# Coverage reports
+.coverage
+
 # Chat histories (personal notes)
 chat_histories/

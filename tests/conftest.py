@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-import sqlite3
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 from task_engine import db
-from task_engine.models import Task, TaskState
-
+from task_engine.models import Task
 
 # ---------------------------------------------------------------------------
 # In-memory DB fixture — patches db.DB_PATH so every test gets a clean slate

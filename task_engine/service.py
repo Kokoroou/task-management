@@ -241,3 +241,17 @@ def check_followups() -> List[Task]:
 
 def mark_task_alerted(task_id: int) -> None:
     db.mark_alerted(task_id)
+
+
+# ──────────────────────────── delete ─────────────────────────────────
+
+
+def delete_task(task_id: int) -> Task:
+    """Permanently delete a task from the database. Returns the deleted task snapshot."""
+    task = db.fetch_task(task_id)
+    if task is None:
+        raise WSEError(f"Task #{task_id} not found.")
+    deleted = db.delete_task(task_id)
+    if not deleted:
+        raise WSEError(f"Task #{task_id} could not be deleted.")
+    return task
