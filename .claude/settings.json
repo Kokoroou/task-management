@@ -1,0 +1,38 @@
+{
+  "hooks": [
+    {
+      "comment": "1. Format & Lint: Chỉ chạy isort, black và flake8 ngay sau khi sửa từng file",
+      "event": "post-tool",
+      "toolMatcher": "Edit",
+      "argMatcher": ".*\\.py$",
+      "type": "command",
+      "command": "isort $ARGUMENTS && black $ARGUMENTS && flake8 $ARGUMENTS"
+    },
+    {
+      "comment": "2. Cập nhật môi trường: Giữ nguyên pip install thuần túy",
+      "event": "pre-task",
+      "type": "command",
+      "command": "pip install -e .[dev]"
+    },
+    {
+      "comment": "3. Security Guard: Ngăn chặn các lệnh Bash nguy hiểm",
+      "event": "pre-tool",
+      "toolMatcher": "Bash",
+      "argMatcher": ".*(rm -rf|drop database|kubectl delete|docker rm).*",
+      "type": "command",
+      "command": "echo 'CẢNH BÁO AN TOÀN: Lệnh bị chặn bởi Local Hook!' && exit 1"
+    },
+    {
+      "comment": "4. Type Checking: Chạy mypy một lần duy nhất vào cuối task",
+      "event": "post-task",
+      "type": "command",
+      "command": "mypy ."
+    },
+    {
+      "comment": "5. Testing & Coverage: Chạy unit test cuối cùng",
+      "event": "post-task",
+      "type": "command",
+      "command": "pytest tests/ --cov=task_engine"
+    }
+  ]
+}

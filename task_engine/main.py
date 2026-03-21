@@ -7,6 +7,7 @@ Usage:
     task done ID
     task drop ID [--reason "why"]
     task block ID --reason "Waiting for..." [--follow-up "2025-03-20 09:00"]
+    task update ID --title "New title"
     task update ID --next-step "New next step"
     task update ID --block-reason "New block reason"
     task update ID --next-step "" --block-reason ""  # clear both
@@ -301,6 +302,11 @@ def show(
 @app.command(name="update")
 def update_cmd(
     task_id: int = typer.Argument(..., help="Task ID"),
+    title: Optional[str] = typer.Option(
+        None,
+        "--title", "-t",
+        help="Rename the task",
+    ),
     next_step: Optional[str] = typer.Option(
         None,
         "--next-step", "-n",
@@ -312,15 +318,17 @@ def update_cmd(
         help="Update the block reason note (use '' to clear it)",
     ),
 ):
-    """Update mutable fields of a task (next step, block reason) without changing state."""
+    """Update mutable fields of a task (title, next step, block reason) without changing state."""
     db.init_db()
     try:
-        task = service.update_task_fields(task_id, next_step=next_step, block_reason=block_reason)
+        task = service.update_task_fields(task_id, title=title, next_step=next_step, block_reason=block_reason)
     except service.WSEError as e:
         _abort_on_error(e)
         return
 
     rprint(f"[green]✔ Updated[/green] #{task.id}  {task.title}")
+    if title is not None:
+        rprint(f"     [italic]Title → {task.title}[/italic]")
     if task.next_step:
         rprint(f"     [italic cyan]→ next: {task.next_step}[/italic cyan]")
     elif next_step is not None:

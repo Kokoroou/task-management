@@ -1,11 +1,17 @@
+# ==========================================
+# LEVEL 1: BUILD SYSTEM (Packaging Foundation)
+# ==========================================
 [build-system]
 requires = ["setuptools>=70.0,<80.0"]
 build-backend = "setuptools.build_meta"
 
+# ==========================================
+# LEVEL 2: PROJECT METADATA (Core Info & Dependencies)
+# ==========================================
 [project]
 name = "work-state-engine"
 version = "0.1.0"
-description = "CLI-first personal workflow tool — optimised for continuation, not planning."
+description = "CLI-first personal workflow tool - optimised for continuation, not planning."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
@@ -16,12 +22,58 @@ dependencies = [
     "rich>=13",
 ]
 
+# ==========================================
+# LEVEL 3: EXTRAS & ENTRY POINTS (Auxiliary & CLI)
+# ==========================================
 [project.optional-dependencies]
 windows = ["win10toast>=0.9"]
+dev = [
+    # testing
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    # formatting
+    "black>=24.0",
+    "isort>=5.13",
+    # linting
+    "flake8>=7.0",
+    "Flake8-pyproject>=1.2",
+    # type checking
+    "mypy>=1.10",
+]
 
 [project.scripts]
 task = "task_engine.main:main"
 
+# ==========================================
+# LEVEL 4: BUILD TOOL SPECIFICS (Setuptools Configuration)
+# ==========================================
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["task_engine*"]
+
+# ==========================================
+# LEVEL 5: DEV TOOLS CONFIGURATION (CI Pipeline Order)
+# ==========================================
+
+# --- 5.1 Formatting ---
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+# --- 5.2 Linting & Type Checking ---
+[tool.flake8]
+max-line-length = 100
+extend-ignore = ["E203"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = false
+ignore_missing_imports = true
+
+# --- 5.3 Testing ---
+[tool.pytest.ini_options]
+testpaths = ["tests"]
